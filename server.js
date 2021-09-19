@@ -8,23 +8,29 @@ const { createWriteStream } = require('fs');
 const child_process = require('child_process');
 const bodyParser = require('body-parser');
 
-const script = 'python ./process.py ';
+const script = 'python ./process.py';
 
 app.use(express.static('./public'))
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({extended: false}));
 app.post('/upload', upload.single('img'), async (req, res) => {
-	const folder = Math.random().toString();
+	const folder = Math.random().toString(16).slice(2);
 	await fs.mkdir(folder);
-	let ext = '';
-	if (/png/.test(req.file.mimetype)) ext = '.png';
-	else if (/jpe?g/i.test(req.file.mimetype)) ext = 'jpg'
-	await fs.writeFile(`${folder}/img${ext}`, req.file.buffer);
+	
+	try {
+		let ext = '';
+		if (/png/i.test(req.file.mimetype)) ext = '.png';
+		else if (/jpe?g/i.test(req.file.mimetype)) ext = '.jpg'
+		await fs.writeFile(`${folder}/img${ext}`, req.file.buffer);
 
-	const p = child_process.execSync(script + folder + '/img.png ' + parseFloat(req.body.x) + ' ' + parseFloat(req.body.y));
+		const p = child_process.execSync(`${script} {folder}/img.png ${parseFloat(req.body.x)} ${parseFloat(req.body.y)}`);
 
+		res.send(p.toString());
+	}
+	catch (e) {
+		res.status(404).send("Bad request");
+	}
 	await fs.rmdir(folder, { recursive: true });
-	res.send(p.toString());
 });
 
-app.listen(8080);
+app.listen(8080, '0.0.0.0');
